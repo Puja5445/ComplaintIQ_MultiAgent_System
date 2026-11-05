@@ -1,0 +1,86 @@
+[
+  {
+    "file": "raw/cfpb/credit_card.csv",
+    "url": "https://www.consumerfinance.gov/data-research/consumer-complaints/search/api/v1/?product=Credit+card&has_narrative=true&format=csv&no_aggs=true&date_received_min=2026-01-01&date_received_max=2026-06-30",
+    "bytes": 15630954,
+    "sha256": "6c8d91ea80ea9dc842745349444bc1842898652a5bca22d6f7d85fa54634e4a9",
+    "retrieved_utc": "2026-11-05T06:40:31"
+  },
+  {
+    "file": "raw/cfpb/checking_or_savings_account.csv",
+    "url": "https://www.consumerfinance.gov/data-research/consumer-complaints/search/api/v1/?product=Checking+or+savings+account&has_narrative=true&format=csv&no_aggs=true&date_received_min=2026-01-01&date_received_max=2026-06-30",
+    "bytes": 12763846,
+    "sha256": "381e57878fccb269df00ee6e33c67205c7541d278396553c8677f5110d1ed50e",
+    "retrieved_utc": "2026-11-05T06:40:38"
+  },
+  {
+    "file": "raw/ecfr/12cfr1005.xml",
+    "url": "https://www.ecfr.gov/api/versioner/v1/full/2026-11-03/title-12.xml?part=1005",
+    "bytes": 859423,
+    "sha256": "0669a14f83f836f4086de21514f3bcd40041784e50c444b415f4d8e1909a10d0",
+    "retrieved_utc": "2026-11-05T06:40:38"
+  },
+  {
+    "file": "raw/ecfr/12cfr1026.xml",
+    "url": "https://www.ecfr.gov/api/versioner/v1/full/2026-11-03/title-12.xml?part=1026",
+    "bytes": 3946980,
+    "sha256": "d4b9040e205b27a1dd300fe0cf26c97eb173bee53cdaec758573a65450e500f0",
+    "retrieved_utc": "2026-11-05T06:40:44"
+  },
+  {
+    "file": "raw/ecfr/12cfr1022.xml",
+    "url": "https://www.ecfr.gov/api/versioner/v1/full/2026-11-03/title-12.xml?part=1022",
+    "bytes": 272782,
+    "sha256": "e73ec73afade4693b3bdc274bd5098016746544326adc1a363eff5add880acd1",
+    "retrieved_utc": "2026-11-05T06:40:44"
+  },
+  {
+    "file": "raw/ecfr/12cfr1006.xml",
+    "url": "https://www.ecfr.gov/api/versioner/v1/full/2026-11-03/title-12.xml?part=1006",
+    "bytes": 231338,
+    "sha256": "9138aa90547a14dac979a600a2f057f1005a5a90b74b1f4837e1ae1063f02432",
+    "retrieved_utc": "2026-11-05T06:40:48"
+  },
+  {
+    "file": "raw/ecfr/12cfr1030.xml",
+    "url": "https://www.ecfr.gov/api/versioner/v1/full/2026-11-03/title-12.xml?part=1030",
+    "bytes": 153757,
+    "sha256": "a31899e46c5b515c6e5b69bc6ec15ca0a4fb67e4e89ad45c772872cc4dc0a8fc",
+    "retrieved_utc": "2026-11-05T06:40:48"
+  },
+  {
+    "file": "raw/pdf/sh_issue17.pdf",
+    "url": "https://files.consumerfinance.gov/f/documents/bcfp_supervisory-highlights_issue-17_2018-09.pdf",
+    "bytes": 195546,
+    "sha256": "8516bc26fdf053929667b1499707b3c8a24ed83bcc97807385801aac4887cbff",
+    "retrieved_utc": "2026-11-05T06:40:49"
+  },
+  {
+    "file": "raw/pdf/sh_issue18.pdf",
+    "url": "https://files.consumerfinance.gov/f/documents/cfpb_supervisory-highlights_issue-18_032019.pdf",
+    "bytes": 399852,
+    "sha256": "e9b964ceb845c398720e657756032eb4d02799a550d55a770d8ff6c2a8b5ed4e",
+    "retrieved_utc": "2026-11-05T06:40:49"
+  },
+  {
+    "file": "raw/pdf/sh_issue22.pdf",
+    "url": "https://files.consumerfinance.gov/f/documents/cfpb_supervisory-highlights_issue-22_2020-09.pdf",
+    "bytes": 463021,
+    "sha256": "9bfb6cb15965ab98f2d643d2601b927f3ac32b0eac2f5a68ac84cbfed1e12f88",
+    "retrieved_utc": "2026-11-05T06:40:49"
+  },
+  {
+    "file": "raw/pdf/sh_issue23.pdf",
+    "url": "https://files.consumerfinance.gov/f/documents/cfpb_supervisory-highlights_issue-23_2021-01.pdf",
+    "bytes": 774257,
+    "sha256": "eefa345f401083838496ff87b527e454baf17a12e6943b1e96108a4304e1a14e",
+    "retrieved_utc": "2026-11-05T06:40:49"
+  },
+  {
+    "file": "raw/pdf/exam_manual.pdf",
+    "url": "https://files.consumerfinance.gov/f/201210_cfpb_supervision-and-examination-manual-v2.pdf",
+    "bytes": 7486372,
+    "sha256": "ffa32ad54c6576c2f14846c87f7da080348e4baf6625173913a2b0bd1f970c61",
+    "retrieved_utc": "2026-11-05T06:40:49"
+  }
+]
