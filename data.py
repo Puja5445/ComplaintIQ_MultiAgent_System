@@ -34,7 +34,7 @@ def record(path, url):
         "url": url,
         "bytes": len(blob),
         "sha256": hashlib.sha256(blob).hexdigest(),
-        "retrieved_utc": dt.datetime.utcnow().isoformat(timespec="seconds"),
+        "retrieved_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
     })
 
 def fetch(url, out, params=None):
@@ -82,5 +82,33 @@ def download_all():
     (DATA / "manifest.json").write_text(json.dumps(manifest, indent=2))
     print(len(manifest), "files saved in data/manifest.json")
 
+#---------- prepare: load complaints into DuckDB (PDF 2.1) ----------
+import duckdb
+
+def build_duckdb():
+    con = duckdb.connect(str(DATA / "complaintiq.duckdb"))
+    # 1) raw table: both CSVs, all columns as text
+    con.execute(f"""
+        CREATE OR REPLACE TABLE complaints_raw AS
+        SELECT * FROM read_csv_auto('{RAW}/cfpb/*.csv', header=true,
+                                    normalize_names=true, all_varchar=true)""")
+    print(con.execute("DESCRIBE complaints_raw").df()[["column_name"]])
+
+    # 2) clean view: the ONLY thing the SQL agent may query
+    con.execute("""
+        CREATE OR REPLACE VIEW v_complaints AS
+        SELECT CAST(complaint_id AS BIGINT) AS complaint_id,
+               CAST(date_received AS DATE)  AS date_received,
+               product, subproduct, issue, subissue, company, state,
+               tags, submitted_via,
+               company_response_to_consumer AS company_response,
+               timely_response              AS timely
+        FROM complaints_raw
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY complaint_id ORDER BY date_received) = 1""")
+    print(con.execute("""SELECT product, COUNT(*) n, MIN(date_received), MAX(date_received)
+                         FROM v_complaints GROUP BY 1""").df())
+    con.close()
+
 if __name__ == "__main__":
     download_all()
+    build_duckdb()
