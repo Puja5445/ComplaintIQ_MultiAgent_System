@@ -1,0 +1,16 @@
+boto3
+langgraph
+langgraph-checkpoint-sqlite
+pydantic
+duckdb
+faiss-cpu
+rank-bm25
+sqlglot
+lxml
+pypdf
+requests
+pandas
+numpy
+scikit-learn
+streamlit
+pytest
