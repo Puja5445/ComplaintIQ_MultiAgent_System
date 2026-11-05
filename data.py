@@ -107,8 +107,16 @@ def build_duckdb():
         QUALIFY ROW_NUMBER() OVER (PARTITION BY complaint_id ORDER BY date_received) = 1""")
     print(con.execute("""SELECT product, COUNT(*) n, MIN(date_received), MAX(date_received)
                          FROM v_complaints GROUP BY 1""").df())
+    # 3) train/test split: Jan-May = train, June = test (held out)
+    con.execute("""CREATE OR REPLACE VIEW v_train AS
+                   SELECT * FROM v_complaints WHERE date_received <  DATE '2026-06-01'""")
+    con.execute("""CREATE OR REPLACE VIEW v_test AS
+                   SELECT * FROM v_complaints WHERE date_received >= DATE '2026-06-01'""")
+    print(con.execute("""SELECT 'train' AS split, COUNT(*) FROM v_train
+                         UNION ALL SELECT 'test', COUNT(*) FROM v_test""").df())
     con.close()
 
 if __name__ == "__main__":
     download_all()
     build_duckdb()
+        
