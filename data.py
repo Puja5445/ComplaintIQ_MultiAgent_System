@@ -116,7 +116,48 @@ def build_duckdb():
                          UNION ALL SELECT 'test', COUNT(*) FROM v_test""").df())
     con.close()
 
+# ---------- chunk regulations (XML) + CFPB PDFs ----------
+from lxml import etree
+from pypdf import PdfReader
+
+def split_text(text, size=1500, overlap=200):
+    # cut long text into pieces of about 1500 characters, overlapping by 200
+    pieces, start = [], 0
+    while start < len(text):
+        pieces.append(text[start:start + size])
+        start += size - overlap
+    return pieces
+
+def build_chunks():
+    chunks = []
+    # 1) XML: one law section (DIV8) = one or more chunks
+    regs = {"1005": "Reg E", "1026": "Reg Z", "1022": "Reg V", "1006": "Reg F", "1030": "Reg DD"}
+    for part, reg in regs.items():
+        tree = etree.parse(str(RAW / "ecfr" / f"12cfr{part}.xml"))
+        for sec in tree.iter("DIV8"):
+            sec_id = sec.get("N", "").replace("§", "").strip()      # e.g. 1005.11
+            head = sec.findtext("HEAD", default="").strip()
+            body = " ".join(" ".join(p.itertext()) for p in sec.iter("P"))
+            for i, piece in enumerate(split_text(body)):
+                chunks.append({"chunk_id": f"{sec_id}-{i}", "source": reg,
+                               "section": sec_id, "title": head, "text": piece})
+    # 2) PDFs: each page split into pieces
+    for pdf in sorted((RAW / "pdf").glob("*.pdf")):
+        for page_no, page in enumerate(PdfReader(str(pdf)).pages, start=1):
+            text = " ".join((page.extract_text() or "").split())
+            if len(text) < 100:          # skip empty or cover pages
+                continue
+            for i, piece in enumerate(split_text(text)):
+                chunks.append({"chunk_id": f"{pdf.stem}-p{page_no}-{i}", "source": pdf.stem,
+                               "section": f"page {page_no}", "title": pdf.stem, "text": piece})
+    out = PROC / "reg_chunks.jsonl"
+    with open(out, "w") as f:
+        for c in chunks:
+            f.write(json.dumps(c) + "\n")
+    print(len(chunks), "chunks saved in", out)
+
 if __name__ == "__main__":
     download_all()
     build_duckdb()
+    build_chunks()
         
