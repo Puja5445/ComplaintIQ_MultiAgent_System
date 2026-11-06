@@ -9,7 +9,11 @@ import boto3, json, hashlib, sqlite3, time
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from pydantic import BaseModel, ValidationError
-from data import REGION, ROOT, STATE, DATA, PROC
+from data import REGION, ROOT, STATE, DATA, PROC, INDEX
+import numpy as np, faiss, re
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from rank_bm25 import BM25Okapi
 
 # ---------- Part A: model probe ----------
 MODELS_FILE = ROOT / "models.json"
@@ -202,5 +206,57 @@ def build_narratives(n_train=300, n_test=60, limit=None):
                     JOIN read_json_auto('{out}') n ON c.complaint_id = n.complaint_id""")
     print(con.execute("SELECT split, COUNT(*) AS stories FROM v_narratives GROUP BY 1").df())
     con.close()
+
+# ---------- Part D: retrieval layer (PDF Phase 3) ----------
+# 3.1 Titan Text Embeddings v2 with a disk cache
+CACHE = INDEX / "embed_cache"; CACHE.mkdir(exist_ok=True)
+
+def _embed_one(text, dim=1024):
+    key = CACHE / (hashlib.sha1(f"{dim}|{text}".encode()).hexdigest() + ".npy")
+    if key.exists():
+        return np.load(key)
+    body = json.dumps({"inputText": text[:30000], "dimensions": dim, "normalize": True})
+    resp = brt.invoke_model(modelId="amazon.titan-embed-text-v2:0", body=body)
+    vec = np.array(json.loads(resp["body"].read())["embedding"], dtype="float32")
+    np.save(key, vec)
+    return vec
+
+def embed(texts, workers=3):            # keep concurrency low on budget-capped accounts
+    with ThreadPoolExecutor(workers) as ex:
+        return np.vstack(list(ex.map(_embed_one, texts)))
+
+# 3.2 Hybrid index (dense + BM25 fused with Reciprocal Rank Fusion)
+def tok(s): return re.findall(r"[a-z0-9]+(?:\.[0-9]+)?", s.lower())
+
+class HybridIndex:
+    def __init__(self, chunks):
+        self.chunks = chunks
+        vecs = embed([c["text"] for c in chunks])          # unit-normalised by Titan v2
+        self.faiss = faiss.IndexFlatIP(vecs.shape[1]); self.faiss.add(vecs)
+        self.bm25 = BM25Okapi([tok(c["text"]) for c in chunks])
+
+    def search(self, query, k=8, pool=40, rrf_k=60):
+        qv = embed([query])
+        _, dense = self.faiss.search(qv, pool)
+        sparse = np.argsort(self.bm25.get_scores(tok(query)))[::-1][:pool]
+        score = defaultdict(float)
+        for ranking in (dense[0], sparse):                 # Reciprocal Rank Fusion
+            for r, i in enumerate(ranking):
+                if i >= 0:
+                    score[int(i)] += 1.0 / (rrf_k + r + 1)
+        top = sorted(score, key=score.get, reverse=True)[:k]
+        return [{**self.chunks[i], "rrf": round(score[i], 4)} for i in top]
+def load_reg_chunks():
+    return [json.loads(l) for l in open(PROC / "reg_chunks.jsonl")]
+
+def load_case_docs():
+    # TRAIN stories only (Jan-May); the text key is what HybridIndex reads
+    con = duckdb.connect(str(DATA / "complaintiq.duckdb"), read_only=True)
+    rows = con.execute("""SELECT complaint_id, product, issue, company_response, timely, narrative
+    FROM v_narratives WHERE split='train' ORDER BY complaint_id""").fetchall()
+    con.close()
+    return [{"complaint_id": r[0], "product": r[1], "issue": r[2],
+         "company_response": r[3], "timely": r[4], "text": r[5]} for r in rows]
+
 if __name__ == "__main__":
     probe_models()
