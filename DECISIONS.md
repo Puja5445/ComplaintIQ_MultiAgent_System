@@ -14,3 +14,7 @@
 - Fake stories are written from real labels by a non-Claude model (writer), so triage (Sonnet) never grades its own family's text.
 - Labels stay the ground truth; stories must not use label words.
 - Limitation: synthetic text is cleaner than real complaints, so accuracy may look optimistic. Noted in report.
+
+## D4 - Writer prompt fix
+- Writer (Nova) sometimes wrote several complaints in one, split by '---'.
+- Fix: prompt rule "exactly ONE complaint". Removed the bad rows and regenerated them. Final check: 360 stories, 0 bad.
