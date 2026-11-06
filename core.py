@@ -4,11 +4,12 @@
 # Part B: Bedrock wrapper - retries, cache, cost ledger, JSON validation.
 # Run: python core.py   (runs the model probe)
 
+import duckdb
 import boto3, json, hashlib, sqlite3, time
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from pydantic import BaseModel, ValidationError
-from data import REGION, ROOT, STATE
+from data import REGION, ROOT, STATE, DATA, PROC
 
 # ---------- Part A: model probe ----------
 MODELS_FILE = ROOT / "models.json"
@@ -147,5 +148,59 @@ def probe_writer():
                 return
     print("no writer model works - paste the x lines above")
 
+# ---------- Part C: fake customer stories (trainer approved) ----------
+# Writer model (Nova, not Claude) turns real labels into messy customer stories.
+# Saved to data/processed/narratives.jsonl and joined to the labels as view v_narratives.
+
+STORY_SYSTEM = (
+    "You write realistic consumer complaints for a bank complaint system. "
+    "Write 3-5 sentences in first person, informal and a bit messy, like a real customer typing in a hurry. "
+    "Do NOT use the exact words of the product, issue or sub-issue labels you are given; "
+    "describe what happened in everyday words. "
+    "Include a rough date or time frame and one concrete detail (an amount, a place, or what the bank said). "
+    "Use only fake details. Output only the complaint text."
+    "Write exactly ONE complaint from ONE customer. Never write several, and never use '---'.")
+
+def _story_prompt(prod, sub, iss, subi, comp, st, tags, d, add_pii):
+    p = (f"Product: {prod} / {sub}\nIssue: {iss} / {subi}\nCompany: {comp}\n"
+         f"State: {st}\nComplaint date: {d}\n")
+    if tags and "Older American" in tags:
+        p += "The customer is over 62; show it naturally (age or retirement) without saying 'older American'.\n"
+    if tags and "Servicemember" in tags:
+        p += "The customer is military or a veteran; mention it naturally.\n"
+    if add_pii:
+        p += "Also include a fake phone number like 555-0142 and a card ending like 'ending 4821'.\n"
+    return p
+
+def build_narratives(n_train=300, n_test=60, limit=None):
+    out = PROC / "narratives.jsonl"
+    done = set()
+    if out.exists():                      # safe to re-run: skips finished stories
+        done = {json.loads(l)["complaint_id"] for l in open(out)}
+    writer = json.loads(MODELS_FILE.read_text())["writer"]
+    con = duckdb.connect(str(DATA / "complaintiq.duckdb"))
+    for split, view, n in [("train", "v_train", n_train), ("test", "v_test", n_test)]:
+        rows = con.execute(f"""SELECT complaint_id, product, subproduct, issue, subissue,
+                                      company, state, tags, CAST(date_received AS VARCHAR)
+                               FROM {view} USING SAMPLE reservoir({n} ROWS) REPEATABLE (42)""").fetchall()
+        if limit:
+            rows = rows[:limit]
+        for i, (cid, prod, sub, iss, subi, comp, st, tags, d) in enumerate(rows):
+            if cid in done:
+                continue
+            text = chat(writer, STORY_SYSTEM,
+                        _story_prompt(prod, sub, iss, subi, comp, st, tags, d, add_pii=(i % 10 == 0)),
+                        max_tokens=300, temperature=0.8)
+            with open(out, "a") as f:
+                f.write(json.dumps({"complaint_id": cid, "split": split,
+                                    "narrative": text.strip()}) + "\n")
+            if (i + 1) % 20 == 0:
+                print(split, i + 1, "/", len(rows))
+    # join stories to labels: 12 columns of v_complaints + narrative + split
+    con.execute(f"""CREATE OR REPLACE VIEW v_narratives AS
+                    SELECT c.*, n.narrative, n.split FROM v_complaints c
+                    JOIN read_json_auto('{out}') n ON c.complaint_id = n.complaint_id""")
+    print(con.execute("SELECT split, COUNT(*) AS stories FROM v_narratives GROUP BY 1").df())
+    con.close()
 if __name__ == "__main__":
     probe_models()
