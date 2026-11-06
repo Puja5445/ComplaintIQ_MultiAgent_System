@@ -128,5 +128,24 @@ def chat_json(model_id, system, user, schema: type[BaseModel], **kw):
                    f"Previous answer: {raw}\nReturn the corrected JSON only.", **kw)
         return schema.model_validate_json(_json_part(fix))
 
+# ---------- Part A2: writer model (non-Claude, writes the fake stories) ----------
+WRITER_KEYS = ["nova-lite", "nova-pro", "nova-micro", "llama3-3-70b", "llama3-1-70b", "mistral-large"]
+
+def probe_writer():
+    # finds one working non-Claude model and ADDS it to models.json (other roles stay as they are)
+    br = boto3.client("bedrock", region_name=REGION)
+    rt = boto3.client("bedrock-runtime", region_name=REGION)
+    base = [m["modelId"] for m in br.list_foundation_models()["modelSummaries"]]
+    ids = ["us." + m for m in base if m.startswith(("amazon.nova", "meta.llama"))] + base
+    models = json.loads(MODELS_FILE.read_text())
+    for key in WRITER_KEYS:
+        for mid in ids:
+            if key in mid and works(rt, mid, "writer"):
+                models["writer"] = mid
+                MODELS_FILE.write_text(json.dumps(models, indent=2))
+                print("saved writer:", mid)
+                return
+    print("no writer model works - paste the x lines above")
+
 if __name__ == "__main__":
     probe_models()

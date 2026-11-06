@@ -1,5 +1,6 @@
 {
   "worker": "us.anthropic.claude-sonnet-4-6",
   "judge": "us.anthropic.claude-opus-5-5",
-  "embed": "amazon.titan-embed-text-v2:0"
+  "embed": "amazon.titan-embed-text-v2:0",
+  "writer": "us.amazon.nova-lite-v1:0"
 }
